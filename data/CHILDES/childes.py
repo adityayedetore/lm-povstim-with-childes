@@ -356,17 +356,51 @@ class CHILDESCorpusReader(XMLCorpusReader):
             sents = []
             # select speakers
             if speaker == "ALL" or xmlsent.get("who") in speaker:
-                for xmlword in xmlsent.findall(".//{%s}w" % NS):
+                for xmlword in xmlsent:
+                    if xmlword.tag[37:] == "w":
+                        pass
+                    elif xmlword.tag[37:] == "g":
+                        xmlword = xmlword.find(".//{%s}w" % NS)
+                        if not xmlword:
+                            continue
+                    elif xmlword.tag[37:] == "t":
+                        _t_attrib_to_punct = {
+                                'p':'.',
+                                'q':'?',
+                                'e':'!',
+                                'trail off':'...',
+                                'quotation next line':'',
+                                'quotation precedes':'',
+                                'interruption':'-',
+                                'interruption question':'?',
+                                'trail off question':'..?',
+                                'question exclamation':'?!',
+                                'self interruption':'-',
+                                'self interruption question':'-?',
+                                'broken for coding':'',
+                                'missing CA terminator':'.'
+                                }
+                        sents.append(_t_attrib_to_punct[xmlword.attrib['type']])
+                        continue
+                    elif xmlword.tag[37:] == "tagMarker":
+                        _tagMarker_attrib_to_punct = {
+                                'comma':',',
+                                'tag':'',
+                                'vocative':''}
+                        sents.append(_tagMarker_attrib_to_punct[xmlword.attrib['type']])
+                        continue
+                    else: 
+                        continue
                     infl = None
                     suffixStem = None
                     suffixTag = None
                     # getting replaced words
-                    if replace and xmlsent.find(".//{%s}w/{%s}replacement" % (NS, NS)):
-                        xmlword = xmlsent.find(
-                            ".//{%s}w/{%s}replacement/{%s}w" % (NS, NS, NS)
+                    if replace and xmlword.find(".//{%s}replacement" % NS):
+                        xmlword = xmlword.find(
+                            ".//{%s}replacement/{%s}w" % (NS, NS)
                         )
-                    elif replace and xmlsent.find(".//{%s}w/{%s}wk" % (NS, NS)):
-                        xmlword = xmlsent.find(".//{%s}w/{%s}wk" % (NS, NS))
+                    elif replace and xmlword.find(".//{%s}wk" % NS):
+                        xmlword = xmlword.find(".//{%s}wk" % NS)
                     # get text
                     if xmlword.text:
                         word = xmlword.text
