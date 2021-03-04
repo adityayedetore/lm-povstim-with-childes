@@ -369,15 +369,15 @@ class CHILDESCorpusReader(XMLCorpusReader):
                                 'q':'?',
                                 'e':'!',
                                 'trail off':'...',
-                                'quotation next line':'',
-                                'quotation precedes':'',
+                                'quotation next line':'.',
+                                'quotation precedes':'.',
                                 'interruption':'-',
-                                'interruption question':'?',
+                                'interruption question':'-?',
                                 'trail off question':'..?',
                                 'question exclamation':'?!',
                                 'self interruption':'-',
                                 'self interruption question':'-?',
-                                'broken for coding':'',
+                                'broken for coding':'.',
                                 'missing CA terminator':'.'
                                 }
                         sents.append(_t_attrib_to_punct[xmlword.attrib['type']])
@@ -385,11 +385,19 @@ class CHILDESCorpusReader(XMLCorpusReader):
                     elif xmlword.tag[37:] == "tagMarker":
                         _tagMarker_attrib_to_punct = {
                                 'comma':',',
-                                'tag':'',
-                                'vocative':''}
+                                'tag':',',
+                                'vocative':','}
                         sents.append(_tagMarker_attrib_to_punct[xmlword.attrib['type']])
                         continue
-                    else: 
+                    elif xmlword.tag[37:] == 's':
+                        _s_attrib_to_punct = {
+                                'semicolon': ';',
+                                'colon': ':',
+                                'level': ''
+                                }
+                        sents.append(_s_attrib_to_punct[xmlword.attrib['type']])
+                        continue
+                    else: #ignored: ['a','e','pause', 'linker','media','quotation', 'postcode','overlap-point','freecode','internal-media']
                         continue
                     infl = None
                     suffixStem = None
