@@ -397,23 +397,32 @@ class CHILDESCorpusReader(XMLCorpusReader):
                                 }
                         sents.append(_s_attrib_to_punct[xmlword.attrib['type']])
                         continue
+                    elif xmlword.tag[37:] == 'pause':
+                        sents.append(',')
+                        continue
                     else: #ignored: ['a','e','pause', 'linker','media','quotation', 'postcode','overlap-point','freecode','internal-media']
                         continue
                     infl = None
                     suffixStem = None
                     suffixTag = None
                     # getting replaced words
-                    if replace and xmlword.find(".//{%s}replacement" % NS):
+                    if replace and xmlword.find(".//{%s}replacement/{%s}w" % (NS, NS)):
                         xmlword = xmlword.find(
                             ".//{%s}replacement/{%s}w" % (NS, NS)
                         )
-                    elif replace and xmlword.find(".//{%s}wk" % NS):
-                        xmlword = xmlword.find(".//{%s}wk" % NS)
                     # get text
+                    word = ""
                     if xmlword.text:
                         word = xmlword.text
-                    else:
-                        word = ""
+                    if xmlword.find(".//{%s}shortening" % NS) != None:
+                        if xmlword.find(".//{%s}shortening" % NS).text:
+                            word = word + xmlword.find(".//{%s}shortening" % NS).text
+                        if xmlword.find(".//{%s}shortening" % NS).tail:
+                            word = word + xmlword.find(".//{%s}shortening" % NS).tail
+                    if replace and xmlword.find(".//{%s}wk" % NS) != None:
+                        for wk in xmlword.findall(".//{%s}wk" % NS):
+                            if wk.tail:
+                                word = word + wk.tail
                     # strip tailing space
                     if strip_space:
                         word = word.strip()
