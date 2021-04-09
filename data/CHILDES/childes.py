@@ -1,6 +1,6 @@
 # CHILDES XML Corpus Reader
 
-# Copyright (C) 2001-2021 NLTK Project
+# Copyright (C) 2001-2020 NLTK Project
 # Author: Tomonori Nagano <tnagano@gc.cuny.edu>
 #         Alexis Dimitriadis <A.Dimitriadis@uu.nl>
 # URL: <http://nltk.org/>
@@ -31,7 +31,6 @@ class CHILDESCorpusReader(XMLCorpusReader):
     version of CHILDES is located at ``https://childes.talkbank.org/data-xml/``.
     Copy the needed parts of the CHILDES XML corpus into the NLTK data directory
     (``nltk_data/corpora/CHILDES/``).
-
     For access to the file text use the usual nltk functions,
     ``words()``, ``sents()``, ``tagged_words()`` and ``tagged_sents()``.
     """
@@ -52,7 +51,6 @@ class CHILDESCorpusReader(XMLCorpusReader):
         """
         :return: the given file(s) as a list of words
         :rtype: list(str)
-
         :param speaker: If specified, select specific speaker(s) defined
             in the corpus. Default is 'ALL' (all participants). Common choices
             are 'CHI' (the child), 'MOT' (mother), ['CHI','MOT'] (exclude
@@ -94,7 +92,6 @@ class CHILDESCorpusReader(XMLCorpusReader):
             words and punctuation symbols, encoded as tuples
             ``(word,tag)``.
         :rtype: list(tuple(str,str))
-
         :param speaker: If specified, select specific speaker(s) defined
             in the corpus. Default is 'ALL' (all participants). Common choices
             are 'CHI' (the child), 'MOT' (mother), ['CHI','MOT'] (exclude
@@ -135,7 +132,6 @@ class CHILDESCorpusReader(XMLCorpusReader):
         :return: the given file(s) as a list of sentences or utterances, each
             encoded as a list of word strings.
         :rtype: list(list(str))
-
         :param speaker: If specified, select specific speaker(s) defined
             in the corpus. Default is 'ALL' (all participants). Common choices
             are 'CHI' (the child), 'MOT' (mother), ['CHI','MOT'] (exclude
@@ -177,7 +173,6 @@ class CHILDESCorpusReader(XMLCorpusReader):
         :return: the given file(s) as a list of
             sentences, each encoded as a list of ``(word,tag)`` tuples.
         :rtype: list(list(tuple(str,str)))
-
         :param speaker: If specified, select specific speaker(s) defined
             in the corpus. Default is 'ALL' (all participants). Common choices
             are 'CHI' (the child), 'MOT' (mother), ['CHI','MOT'] (exclude
@@ -251,7 +246,6 @@ class CHILDESCorpusReader(XMLCorpusReader):
         """
         :return: the given file(s) as string or int
         :rtype: list or int
-
         :param month: If true, return months instead of year-month-date
         """
         if not self._lazy:
@@ -362,22 +356,73 @@ class CHILDESCorpusReader(XMLCorpusReader):
             sents = []
             # select speakers
             if speaker == "ALL" or xmlsent.get("who") in speaker:
-                for xmlword in xmlsent.findall(".//{%s}w" % NS):
+                for xmlword in xmlsent:
+                    if xmlword.tag[37:] == "w":
+                        pass
+                    elif xmlword.tag[37:] == "g":
+                        xmlword = xmlword.find(".//{%s}w" % NS)
+                        if not xmlword:
+                            continue
+                    elif xmlword.tag[37:] == "t":
+                        _t_attrib_to_punct = {
+                                'p':'.',
+                                'q':'?',
+                                'e':'!',
+                                'trail off':'...',
+                                'quotation next line':'.',
+                                'quotation precedes':'.',
+                                'interruption':'-',
+                                'interruption question':'-?',
+                                'trail off question':'..?',
+                                'question exclamation':'?!',
+                                'self interruption':'-',
+                                'self interruption question':'-?',
+                                'broken for coding':'.',
+                                'missing CA terminator':'.'
+                                }
+                        sents.append(_t_attrib_to_punct[xmlword.attrib['type']])
+                        continue
+                    elif xmlword.tag[37:] == "tagMarker":
+                        _tagMarker_attrib_to_punct = {
+                                'comma':',',
+                                'tag':',',
+                                'vocative':','}
+                        sents.append(_tagMarker_attrib_to_punct[xmlword.attrib['type']])
+                        continue
+                    elif xmlword.tag[37:] == 's':
+                        _s_attrib_to_punct = {
+                                'semicolon': ';',
+                                'colon': ':',
+                                'level': ''
+                                }
+                        sents.append(_s_attrib_to_punct[xmlword.attrib['type']])
+                        continue
+                    elif xmlword.tag[37:] == 'pause':
+                        sents.append(',')
+                        continue
+                    else: #ignored: ['a','e','pause', 'linker','media','quotation', 'postcode','overlap-point','freecode','internal-media']
+                        continue
                     infl = None
                     suffixStem = None
                     suffixTag = None
                     # getting replaced words
-                    if replace and xmlsent.find(".//{%s}w/{%s}replacement" % (NS, NS)):
-                        xmlword = xmlsent.find(
-                            ".//{%s}w/{%s}replacement/{%s}w" % (NS, NS, NS)
+                    if replace and xmlword.find(".//{%s}replacement/{%s}w" % (NS, NS)):
+                        xmlword = xmlword.find(
+                            ".//{%s}replacement/{%s}w" % (NS, NS)
                         )
-                    elif replace and xmlsent.find(".//{%s}w/{%s}wk" % (NS, NS)):
-                        xmlword = xmlsent.find(".//{%s}w/{%s}wk" % (NS, NS))
                     # get text
+                    word = ""
                     if xmlword.text:
                         word = xmlword.text
-                    else:
-                        word = ""
+                    if xmlword.find(".//{%s}shortening" % NS) != None:
+                        if xmlword.find(".//{%s}shortening" % NS).text:
+                            word = word + xmlword.find(".//{%s}shortening" % NS).text
+                        if xmlword.find(".//{%s}shortening" % NS).tail:
+                            word = word + xmlword.find(".//{%s}shortening" % NS).tail
+                    if replace and xmlword.find(".//{%s}wk" % NS) != None:
+                        for wk in xmlword.findall(".//{%s}wk" % NS):
+                            if wk.tail:
+                                word = word + wk.tail
                     # strip tailing space
                     if strip_space:
                         word = word.strip()
@@ -516,16 +561,13 @@ class CHILDESCorpusReader(XMLCorpusReader):
     def webview_file(self, fileid, urlbase=None):
         """Map a corpus file to its web version on the CHILDES website,
         and open it in a web browser.
-
         The complete URL to be used is:
             childes.childes_url_base + urlbase + fileid.replace('.xml', '.cha')
-
         If no urlbase is passed, we try to calculate it.  This
         requires that the childes corpus was set up to mirror the
         folder hierarchy under childes.psy.cmu.edu/data-xml/, e.g.:
         nltk_data/corpora/childes/Eng-USA/Cornell/??? or
         nltk_data/corpora/childes/Romance/Spanish/Aguirre/???
-
         The function first looks (as a special case) if "Eng-USA" is
         on the path consisting of <corpus root>+fileid; then if
         "childes", possibly followed by "data-xml", appears. If neither
