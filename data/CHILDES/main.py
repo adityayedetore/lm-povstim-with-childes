@@ -1,10 +1,10 @@
-import os
-
 from CHILDES_xml_Processing import process_childes_xml
 from CHILDES_txt_Processing import clean_and_unk
 from CHILDES_Treebank_Processing import process_childes_treebank
 from CHILDES_Treebank_txt_Processing import split_treebank
+import os
 
+"""
 train_raw, valid_raw, test_raw, excluded_raw, treebank_raw = process_childes_xml("./", "childes-xml")
 train, valid, test, excluded, treebank, vocab = clean_and_unk(train_raw, valid_raw, test_raw, excluded_raw, treebank_raw)
 if not os.path.exists('pretraining'):
@@ -21,6 +21,7 @@ with open ('pretraining/treebank.txt', 'w') as f:
     f.write("\n".join([' '.join(s) for s in treebank]))
 with open ('pretraining/vocab.txt', 'w') as f:
     f.write("\n".join(vocab))
+"""
 
 decl, quest = process_childes_treebank("childes-treebank")
 with open ('pretraining/excluded.txt') as f:
