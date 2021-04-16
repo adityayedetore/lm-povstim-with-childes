@@ -1,6 +1,6 @@
 # CHILDES XML Corpus Reader
 
-# Copyright (C) 2001-2020 NLTK Project
+# Copyright (C) 2001-2021 NLTK Project
 # Author: Tomonori Nagano <tnagano@gc.cuny.edu>
 #         Alexis Dimitriadis <A.Dimitriadis@uu.nl>
 # URL: <http://nltk.org/>
@@ -356,13 +356,22 @@ class CHILDESCorpusReader(XMLCorpusReader):
             sents = []
             # select speakers
             if speaker == "ALL" or xmlsent.get("who") in speaker:
+                
+                # ADDED: Pre-processing of XML data
                 for xmlword in xmlsent:
+
+                    # We make no changes to words with
+                    # the "w" tag
                     if xmlword.tag[37:] == "w":
                         pass
+
+                    # TO-DO: Say what this does
                     elif xmlword.tag[37:] == "g":
                         xmlword = xmlword.find(".//{%s}w" % NS)
                         if not xmlword:
                             continue
+                    
+                    # Format punctuation
                     elif xmlword.tag[37:] == "t":
                         _t_attrib_to_punct = {
                                 'p':'.',
@@ -382,6 +391,8 @@ class CHILDESCorpusReader(XMLCorpusReader):
                                 }
                         sents.append(_t_attrib_to_punct[xmlword.attrib['type']])
                         continue
+
+                    # Format punctuation
                     elif xmlword.tag[37:] == "tagMarker":
                         _tagMarker_attrib_to_punct = {
                                 'comma':',',
@@ -389,6 +400,8 @@ class CHILDESCorpusReader(XMLCorpusReader):
                                 'vocative':','}
                         sents.append(_tagMarker_attrib_to_punct[xmlword.attrib['type']])
                         continue
+
+                    # Format punctuation
                     elif xmlword.tag[37:] == 's':
                         _s_attrib_to_punct = {
                                 'semicolon': ';',
@@ -397,11 +410,18 @@ class CHILDESCorpusReader(XMLCorpusReader):
                                 }
                         sents.append(_s_attrib_to_punct[xmlword.attrib['type']])
                         continue
+
+                    # Format punctuation
                     elif xmlword.tag[37:] == 'pause':
                         sents.append(',')
                         continue
-                    else: #ignored: ['a','e','pause', 'linker','media','quotation', 'postcode','overlap-point','freecode','internal-media']
+
+                    # Ignore words with the following tags:
+                    # ['a','e','pause', 'linker','media','quotation', 'postcode','overlap-point','freecode','internal-media']
+                    else:
                         continue
+                    # End of added preprocessing
+                    
                     infl = None
                     suffixStem = None
                     suffixTag = None
