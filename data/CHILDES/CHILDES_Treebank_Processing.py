@@ -18,18 +18,22 @@ def process_childes_treebank(path_to_treebank="childes-treebank"):
     if not folder_name.endswith("/"):
         folder_name = folder_name + "/"
 
-    fi1 = open(folder_name + "brown-adam.parsed", "r")
-    fi2 = open(folder_name + "brown-eve+animacy+theta.parsed", "r")
-    fi3 = open(folder_name + "brown-sarah.parsed", "r")
-    fi4 = open(folder_name + "soderstrom.parsed", "r")
-    fi5 = open(folder_name + "suppes.parsed", "r")
-    fi6 = open(folder_name + "valian+animacy+theta.parsed", "r")
+    filenames = ["brown-adam.parsed",
+                 "brown-eve+animacy+theta.parsed",
+                 "brown-sarah.parsed",
+                 "soderstrom.parsed",
+                 "suppes.parsed",
+                 "valian+animacy+theta.parsed",
+                 "hslld-hv1-er.parsed",
+                 "hslld-hv1-mt.parsed"]
+
+    fis = [open(folder_name + filename, "r") for filename in filenames]
 
     trees = []
     tree = ""
 
     # Iterate over all the files
-    for fi in [fi1, fi2, fi3, fi4, fi5, fi6]:
+    for fi in fis:
         # Iterate over the lines in this file to add trees to the list of trees
         for line in fi:
             # If you have completed a tree, add it to the list of trees

@@ -119,7 +119,7 @@ def remix_held_out(valid, test, excluded):
 
 
 def process_childes_xml(path_to_childes="./", childes_file_name="childes-xml"):
-    corpora = read_corpora(path_to_corpora="./", corpora_file_name="childes-xml")
+    corpora = read_corpora(path_to_corpora=path_to_childes, corpora_file_name=childes_file_name)
     files_to_utterances = map_files_to_non_target_child_utterances(corpora)
     treebank, not_treebank = split_treebank(files_to_utterances)
     included_treebank, excluded = hold_out(treebank)
@@ -127,6 +127,5 @@ def process_childes_xml(path_to_childes="./", childes_file_name="childes-xml"):
     train, valid, test = train_valid_test_split(included)
     valid_remixed, test_remixed = remix_held_out(valid, test, excluded)
     excluded = [utt for utts in excluded.values() for utt in utts]
-    treebank = [utt for utts in treebank.values() for utt in utts]
-    return train, valid_remixed, test_remixed, excluded, treebank
+    return train, valid_remixed, test_remixed, excluded
 

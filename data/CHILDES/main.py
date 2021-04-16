@@ -5,8 +5,8 @@ from CHILDES_txt_Processing import clean_and_unk
 from CHILDES_Treebank_Processing import process_childes_treebank
 from CHILDES_Treebank_txt_Processing import split_treebank
 
-train_raw, valid_raw, test_raw, excluded_raw, treebank_raw = process_childes_xml("./", "childes-xml")
-train, valid, test, excluded, treebank, vocab = clean_and_unk(train_raw, valid_raw, test_raw, excluded_raw, treebank_raw)
+train_raw, valid_raw, test_raw, excluded_raw = process_childes_xml("./", "childes-xml")
+train, valid, test, excluded, vocab = clean_and_unk(train_raw, valid_raw, test_raw, excluded_raw)
 if not os.path.exists('pretraining'):
     os.mkdir('pretraining')
 with open ('pretraining/train.txt', 'w') as f:
@@ -17,8 +17,6 @@ with open ('pretraining/test.txt', 'w') as f:
     f.write("\n".join([' '.join(s) for s in test]))
 with open ('pretraining/excluded.txt', 'w') as f:
     f.write("\n".join([' '.join(s) for s in excluded]))
-with open ('pretraining/treebank.txt', 'w') as f:
-    f.write("\n".join([' '.join(s) for s in treebank]))
 with open ('pretraining/vocab.txt', 'w') as f:
     f.write("\n".join(vocab))
 

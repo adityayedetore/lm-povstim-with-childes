@@ -162,21 +162,19 @@ def unk(data, vocab):
 # In[ ]:
 
 
-def clean_and_unk(train, valid, test, excluded, treebank):
+def clean_and_unk(train, valid, test, excluded):
     train_cleaned = clean_and_listify(train)
     valid_cleaned = clean_and_listify(valid)
     test_cleaned = clean_and_listify(test)
     excluded_cleaned = clean_and_listify(excluded)
-    treebank_cleaned = clean_and_listify(treebank)
     train_split = split_data(train_cleaned)
     valid_split = split_data(valid_cleaned)
     test_split = split_data(test_cleaned)
     excluded_split = split_data(excluded_cleaned)
-    treebank_split = split_data(treebank_cleaned)
     train_vocab = make_vocab(train_split, cutoff=2)
     train_unked = unk(train_split, train_vocab)
     valid_unked = unk(valid_split, train_vocab)
     test_unked  = unk(test_split,  train_vocab)
     vocab = list(train_vocab) + ["<unk>"]
-    return train_unked, valid_unked, test_unked, excluded_split, treebank_split, vocab
+    return train_unked, valid_unked, test_unked, excluded_split, vocab
 
