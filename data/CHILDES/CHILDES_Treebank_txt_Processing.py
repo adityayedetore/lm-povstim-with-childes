@@ -21,6 +21,9 @@ def to_alnum(string):
 
 def split_treebank(excluded, decl, quest):
     excluded_edited = edit_tokenization(excluded)
+
+    # Give us a list of all sentences to be excluded, formatted in a way that
+    # removes punctuation etc. so we don't miss matches due to tokenization details
     excluded_alnum = set(to_alnum(excluded_edited).replace('xxx','').splitlines())
 
     decl = [edit_tokenization(d) for d in decl]
@@ -32,7 +35,10 @@ def split_treebank(excluded, decl, quest):
     train_size = int(0.8 * len(decl))
     test_size = int(0.1 * len(decl))
     len_test = 0
+
     for i,q in enumerate(quest):
+        # If the question is in the excluded set, then it can't be in
+        # training or validation
         if to_alnum(q) in excluded_alnum and len_test < test_size:
             test.append(decl[i] + " " +   quest[i] + "\n")
             len_test += 1

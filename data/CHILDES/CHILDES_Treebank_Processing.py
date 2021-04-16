@@ -8,11 +8,8 @@ from nltk.tree import *
 Tree.fromstring("(ROOT (NP (N John)) (VP (V slept)))")
 
 def process_childes_treebank(path_to_treebank="childes-treebank"):
-    # All the "relevant" input files
-    # I have "relevant" in quotes because I don't remember
-    # how I picked these files. So you should probably redownload the
-    # CHILDES treebank yourself and familiarize yourself with it
-    # to be sure this is right
+    # All the treebank files that are not
+    # just about wh-questions
 
     folder_name = path_to_treebank
     if not folder_name.endswith("/"):
@@ -40,9 +37,7 @@ def process_childes_treebank(path_to_treebank="childes-treebank"):
             if line.strip() == "":
                 if tree.strip() != "" and tree.count(")") == tree.count("(") and tree.count("ROOT") == 1:
                     trees.append(tree)
-                #print(tree)
                 tree = ""
-                #break
             else:
                 tree += line.strip()
 
@@ -50,16 +45,12 @@ def process_childes_treebank(path_to_treebank="childes-treebank"):
     # In[3]:
 
 
-    # Creating an output file with all sentences (not trees,
-    # just sentences) from the input files
-    #fo = open("treebank-allsents.txt", "w")
     treesPrime = []
 
     # Loop over the trees
     for tree in trees:
         
-        # I think this "if" condition is to check if the tree is complete
-        # in some way? 
+        # Filter out incomplete trees that don't start and end with parentheses
         if tree[-1] == ")" and tree[0] == "(":
             # Get the list of words in the tree, i.e. its leaves
             words = (Tree.fromstring(tree)).leaves()
@@ -70,22 +61,19 @@ def process_childes_treebank(path_to_treebank="childes-treebank"):
             for word in words:
                 if "*" not in word:
                     wordsFiltered.append(word)
-            # fo.write(" ".join(wordsFiltered) + "\n")
             
-            # I don't remeber what this is doing
+            # A couple trees have an extraneous slash so ignore those
             if "\\" not in tree:
                 treesPrime.append(tree)
 
 
-    # Method to de-question-ify a question; that is, to turn a 
-    # question into a declarative. I'm afraid I don't remember
-    # exactly how this is working.
+    # De-question-ify a question; that is, turn a 
+    # question into a declarative. 
     def deQuest(tree):
         
         result = []
         
-        # Check for a couple of cases that don't work (I forget
-        # exactly why they don't work)
+        # Check for a couple of cases that don't work
         good = 1
         if len(tree[0]) != 2:
             good = 0
@@ -124,7 +112,7 @@ def process_childes_treebank(path_to_treebank="childes-treebank"):
         if good: 
             return result[:-1] + ["."]
         else:
-            return "WRONG"
+            return "INVALID QUESTION"
         
 
 
@@ -136,9 +124,6 @@ def process_childes_treebank(path_to_treebank="childes-treebank"):
     # the input is the de-questionified version of the question,
     # while the output is the question. Otherwise, the input and
     # the output are both the sentence. 
-    # For our current purposes, I think we only need the yes-no
-    # questions. So you can ignore the sentences that are not
-    # yes-no questions.
     counter = 0
     countQ = 0
     total = 0
@@ -146,16 +131,18 @@ def process_childes_treebank(path_to_treebank="childes-treebank"):
     countFrag = 0
     decl = []
     quest = []
-    #foBoth = open("treebank-decl-quest.txt", "w")
 
 
-    # I'm sure that all the "if"s here are checking for
-    # various edge cases, but I forget which edge cases they all are
     for tree in treesPrime:
         okay = True
+
+        # Ignore trivial trees
         if tree.count("(") > 2:
             total += 1
             newTree = Tree.fromstring(tree) 
+            
+            # If it's a valid yes-no question, the child(ren) of the
+            # root will be phrases not strings
             for child in newTree[0]:
                 if isinstance(child, str):
                     okay = False
@@ -163,8 +150,8 @@ def process_childes_treebank(path_to_treebank="childes-treebank"):
                 
                 labels = [child.label() for child in newTree[0]]
                 
-                # So I think that this is the condition that you can use to check if a 
-                # tree is a yes-no question
+                # Checking if it's a yes-no question: If there is just one child
+                # of the root with a label SQ
                 if len(newTree) == 1 and newTree[0].label() == "SQ":
                     countQ += 1
                     treeEdit = []
@@ -178,14 +165,12 @@ def process_childes_treebank(path_to_treebank="childes-treebank"):
                     
                     # Here we generate the declarative from the question.
                     declForm = []
-                    if deQuest(newTree) != "WRONG":
+                    if deQuest(newTree) != "INVALID QUESTION":
                         if treeEdit[0] in ["do", "does", "did", "is", "was", "are", "were", "am", "has", "have", "had", 
                                                "can", "may", "might", "must", "will", "wo", "shall", "would", "could", "should"]:
-                            #print(treeEdit)
                             for node in deQuest(newTree):
                                 if "*" not in node:
                                     declForm.append(node)
-                            # foBoth.write(" ".join(declForm) + "\t" + " ".join(treeEdit) + "\n")
                             decl.append(" ".join(declForm))
                             quest.append(" ".join(treeEdit))
 

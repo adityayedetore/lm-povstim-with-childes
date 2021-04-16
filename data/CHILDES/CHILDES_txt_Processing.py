@@ -5,7 +5,6 @@
 
 # In[1]:
 
-
 def listify_data(raw_string):
     return [line.split() for line in raw_string.splitlines()]
 
@@ -16,7 +15,6 @@ def read_data(filename):
 
 
 # In[2]:
-
 
 def unlistify_data(data):
     zipped = [" ".join(line) for line in data]
@@ -163,18 +161,27 @@ def unk(data, vocab):
 
 
 def clean_and_unk(train, valid, test, excluded):
+    # Clean all the datasets
     train_cleaned = clean_and_listify(train)
     valid_cleaned = clean_and_listify(valid)
     test_cleaned = clean_and_listify(test)
     excluded_cleaned = clean_and_listify(excluded)
+
+    # Split possessives and contractions in all the datasets
     train_split = split_data(train_cleaned)
     valid_split = split_data(valid_cleaned)
     test_split = split_data(test_cleaned)
     excluded_split = split_data(excluded_cleaned)
+
+    # Create the vocab: All words that occurs more than 2 times
+    # in the training set
     train_vocab = make_vocab(train_split, cutoff=2)
+
+    # unk the train, valid, and test data
     train_unked = unk(train_split, train_vocab)
     valid_unked = unk(valid_split, train_vocab)
     test_unked  = unk(test_split,  train_vocab)
     vocab = list(train_vocab) + ["<unk>"]
+
     return train_unked, valid_unked, test_unked, excluded_split, vocab
 
