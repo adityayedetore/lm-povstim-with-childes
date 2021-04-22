@@ -60,7 +60,12 @@ criterion = nn.CrossEntropyLoss()
 
 logging.info("Building the model")
 
-model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied)
+
+if args.model == "Transformer":
+    model = model.TransformerModel(ntokens, args.emsize, args.nhead, args.nhid, args.nlayers, args.dropout)
+else:
+    model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied)
+
 if args.cuda:
     model.cuda()
 
@@ -75,7 +80,8 @@ def evaluate(data_source):
     # Turn on evaluation mode which disables dropout.
     model.eval()
     total_loss = 0
-    hidden = model.init_hidden(eval_batch_size)
+    if args.model != "Transformer":
+        hidden = model.init_hidden(eval_batch_size)
 
     with torch.no_grad():
         # Loop over test set in chunks of size args.bptt
@@ -88,14 +94,19 @@ def evaluate(data_source):
         # have a persistent hidden state like an RNN does).
         for i in range(0, data_source.size(0) - 1, args.bptt):
             data, targets = get_batch(data_source, i, args.bptt)
-            #> output has size seq_length x batch_size x vocab_size
-            output, hidden = model(data, hidden)
-            #> output_flat has size num_targets x vocab_size (batches are stacked together)
-            #> ! important, otherwise softmax computation (e.g. with F.softmax()) is incorrect
-            output_flat = output.view(-1, ntokens)
-            #output_candidates_info(output_flat.data, targets.data)
-            total_loss += len(data) * nn.CrossEntropyLoss()(output_flat, targets).item()
-            hidden = repackage_hidden(hidden)
+            if args.model == "Transformer":
+                output = model(data)
+                output = output.view(-1, ntokens)
+            else:
+                #> output has size seq_length x batch_size x vocab_size
+                output, hidden = model(data, hidden)
+                #> output_flat has size num_targets x vocab_size (batches are stacked together)
+                #> ! important, otherwise softmax computation (e.g. with F.softmax()) is incorrect
+                output = output.view(-1, ntokens)
+                #output_candidates_info(output_flat.data, targets.data)
+                hidden = repackage_hidden(hidden)
+
+            total_loss += len(data) * nn.CrossEntropyLoss()(output, targets).item()
 
     return total_loss / (len(data_source) - 1)
 
@@ -106,16 +117,22 @@ def train():
     total_loss = 0
     start_time = time.time()
 
-    hidden = model.init_hidden(args.batch_size)
+    if args.model != "Transformer":
+        hidden = model.init_hidden(args.batch_size)
 
     # Loop over training set in chunks of size args.bptt
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i, args.bptt)
-        
-        # truncated BPP
-        hidden = repackage_hidden(hidden)
+       
         model.zero_grad()
-        output, hidden = model(data, hidden)
+        
+        if args.model == "Transformer":
+            output = model(data)
+            output = output.view(-1, ntokens)
+        else:
+            # truncated BPP
+            hidden = repackage_hidden(hidden)
+            output, hidden = model(data, hidden)
 
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
