@@ -33,14 +33,8 @@ def write_data(data, filename):
 
 
 def clean_and_listify(data):
-    data_str = "\n".join([" ".join(s) for s in data])
-    new_data = data_str.replace("_"," ")
-    new_data = listify_data(new_data)
-    removed_empty = []
-    for sent in new_data:
-        if len(sent) > 1:
-            removed_empty.append(sent)
-    return removed_empty
+    new_data = [(filename, " ".join(utt).replace("_"," ").split()) for filename, utt in data if len(utt) > 1]
+    return new_data
 
 
 # ## Split possesives and contractions
@@ -113,7 +107,7 @@ def split_line(line):
     return " ".join(s).split()
 
 def split_data(data):
-    return [split_line(line) for line in data]
+    return [(filename, split_line(line)) for filename, line in data]
 
 
 # ## Unking
@@ -127,7 +121,7 @@ def split_data(data):
 
 def count_frequencies(data):
     frequencies = {}
-    for line in data:
+    for filename,line in data:
         for word in line:
             if word in frequencies:
                 frequencies[word] += 1
@@ -138,22 +132,19 @@ def count_frequencies(data):
 # words with frequency > cutoff
 def make_vocab(data, cutoff):
     frequencies = count_frequencies(data)
-    high_frequency_tokens = set()
-    for token in frequencies:
-        if frequencies[token] > cutoff:
-            high_frequency_tokens.add(token)
+    high_frequency_tokens = set([token for token in frequencies if frequencies[token] > cutoff])
     return high_frequency_tokens
 
 def unk(data, vocab):
     unked_data = []
-    for line in data:
+    for filename, line in data:
         unked_line = []
         for word in line:
             if word in vocab:
                 unked_line.append(word)
             else:
                 unked_line.append("<unk>")
-        unked_data.append(unked_line) 
+        unked_data.append((filename, unked_line)) 
     return unked_data
 
 

@@ -356,213 +356,222 @@ class CHILDESCorpusReader(XMLCorpusReader):
             sents = []
             # select speakers
             if speaker == "ALL" or xmlsent.get("who") in speaker:
-                
                 # ADDED: Pre-processing of XML data
                 for xmlword in xmlsent:
 
-                    # We make no changes to words with
-                    # the "w" tag
-                    if xmlword.tag[37:] == "w":
-                        pass
-
-                    # TO-DO: Say what this does
-                    elif xmlword.tag[37:] == "g":
-                        xmlword = xmlword.find(".//{%s}w" % NS)
-                        if not xmlword:
+                    xmlwords = [xmlword]
+                    # Find all words
+                    if xmlword.tag[37:] == "g":
+                        while xmlword.find(".//{%s}g" % NS) != None:
+                            xmlword = xmlword.find(".//{%s}g" % NS)
+                        xmlwords = xmlword.findall("{%s}w" % NS)
+                    
+                    # Iterate over words
+                    for xmlword in xmlwords:
+                        # <w> tags need no foramatting
+                        if xmlword.tag[37:] == "w":
+                            pass
+                        # Format punctuation
+                        elif xmlword.tag[37:] == "t":
+                            _t_attrib_to_punct = {
+                                    'p':'.',
+                                    'q':'?',
+                                    'e':'!',
+                                    'trail off':'...',
+                                    'quotation next line':'.',
+                                    'quotation precedes':'.',
+                                    'interruption':'-',
+                                    'interruption question':'-?',
+                                    'trail off question':'..?',
+                                    'question exclamation':'?!',
+                                    'self interruption':'-',
+                                    'self interruption question':'-?',
+                                    'broken for coding':'.',
+                                    'missing CA terminator':'.'
+                                    }
+                            sents.append(_t_attrib_to_punct[xmlword.attrib['type']])
                             continue
-                    
-                    # Format punctuation
-                    elif xmlword.tag[37:] == "t":
-                        _t_attrib_to_punct = {
-                                'p':'.',
-                                'q':'?',
-                                'e':'!',
-                                'trail off':'...',
-                                'quotation next line':'.',
-                                'quotation precedes':'.',
-                                'interruption':'-',
-                                'interruption question':'-?',
-                                'trail off question':'..?',
-                                'question exclamation':'?!',
-                                'self interruption':'-',
-                                'self interruption question':'-?',
-                                'broken for coding':'.',
-                                'missing CA terminator':'.'
-                                }
-                        sents.append(_t_attrib_to_punct[xmlword.attrib['type']])
-                        continue
 
-                    # Format punctuation
-                    elif xmlword.tag[37:] == "tagMarker":
-                        _tagMarker_attrib_to_punct = {
-                                'comma':',',
-                                'tag':',',
-                                'vocative':','}
-                        sents.append(_tagMarker_attrib_to_punct[xmlword.attrib['type']])
-                        continue
+                        # Format punctuation
+                        elif xmlword.tag[37:] == "tagMarker":
+                            _tagMarker_attrib_to_punct = {
+                                    'comma':',',
+                                    'tag':',',
+                                    'vocative':','}
+                            sents.append(_tagMarker_attrib_to_punct[xmlword.attrib['type']])
+                            continue
 
-                    # Format punctuation
-                    elif xmlword.tag[37:] == 's':
-                        _s_attrib_to_punct = {
-                                'semicolon': ';',
-                                'colon': ':',
-                                'level': ''
-                                }
-                        sents.append(_s_attrib_to_punct[xmlword.attrib['type']])
-                        continue
+                        # Format punctuation
+                        elif xmlword.tag[37:] == 's':
+                            _s_attrib_to_punct = {
+                                    'semicolon': ';',
+                                    'colon': ':',
+                                    'level': ''
+                                    }
+                            sents.append(_s_attrib_to_punct[xmlword.attrib['type']])
+                            continue
 
-                    # Format punctuation
-                    elif xmlword.tag[37:] == 'pause':
-                        sents.append(',')
-                        continue
+                        # Format punctuation
+                        elif xmlword.tag[37:] == 'pause':
+                            sents.append('-')
+                            continue
 
-                    # Ignore words with the following tags:
-                    # ['a','e','pause', 'linker','media','quotation', 'postcode','overlap-point','freecode','internal-media']
-                    else:
-                        continue
-                    # End of added preprocessing
-                    
-                    infl = None
-                    suffixStem = None
-                    suffixTag = None
-                    # getting replaced words
-                    if replace and xmlword.find(".//{%s}replacement/{%s}w" % (NS, NS)):
-                        xmlword = xmlword.find(
-                            ".//{%s}replacement/{%s}w" % (NS, NS)
-                        )
-                    # get text
-                    word = ""
-                    if xmlword.text:
-                        word = xmlword.text
-                    if xmlword.find(".//{%s}shortening" % NS) != None:
-                        if xmlword.find(".//{%s}shortening" % NS).text:
-                            word = word + xmlword.find(".//{%s}shortening" % NS).text
-                        if xmlword.find(".//{%s}shortening" % NS).tail:
-                            word = word + xmlword.find(".//{%s}shortening" % NS).tail
-                    if replace and xmlword.find(".//{%s}wk" % NS) != None:
-                        for wk in xmlword.findall(".//{%s}wk" % NS):
-                            if wk.tail:
-                                word = word + wk.tail
-                    # strip tailing space
-                    if strip_space:
-                        word = word.strip()
-                    # stem
-                    if relation or stem:
-                        try:
-                            xmlstem = xmlword.find(".//{%s}stem" % NS)
-                            word = xmlstem.text
-                        except AttributeError as e:
-                            pass
-                        # if there is an inflection
-                        try:
-                            xmlinfl = xmlword.find(
-                                ".//{%s}mor/{%s}mw/{%s}mk" % (NS, NS, NS)
+                        # Ignore words with the following tags:
+                        # ['a','e','pause', 'linker','media','quotation', 'postcode','overlap-point','freecode','internal-media']
+                        else:
+                            continue
+                        # End of added preprocessing
+                        
+                        infl = None
+                        suffixStem = None
+                        suffixTag = None
+                        # getting replaced words
+                        xmlwordlist = [xmlword]
+                        if replace and xmlword.find(".//{%s}replacement/{%s}w" % (NS, NS)) != None:
+                            xmlwordlist = xmlword.findall(
+                                ".//{%s}replacement/{%s}w" % (NS, NS)
                             )
-                            word += "-" + xmlinfl.text
-                        except:
-                            pass
-                        # if there is a suffix
-                        try:
-                            xmlsuffix = xmlword.find(
-                                ".//{%s}mor/{%s}mor-post/{%s}mw/{%s}stem"
-                                % (NS, NS, NS, NS)
-                            )
-                            suffixStem = xmlsuffix.text
-                        except AttributeError:
-                            suffixStem = ""
-                        if suffixStem:
-                            word += "~" + suffixStem
-                    # pos
-                    if relation or pos:
-                        try:
-                            xmlpos = xmlword.findall(".//{%s}c" % NS)
-                            xmlpos2 = xmlword.findall(".//{%s}s" % NS)
-                            if xmlpos2 != []:
-                                tag = xmlpos[0].text + ":" + xmlpos2[0].text
-                            else:
-                                tag = xmlpos[0].text
-                        except (AttributeError, IndexError) as e:
-                            tag = ""
-                        try:
-                            xmlsuffixpos = xmlword.findall(
-                                ".//{%s}mor/{%s}mor-post/{%s}mw/{%s}pos/{%s}c"
-                                % (NS, NS, NS, NS, NS)
-                            )
-                            xmlsuffixpos2 = xmlword.findall(
-                                ".//{%s}mor/{%s}mor-post/{%s}mw/{%s}pos/{%s}s"
-                                % (NS, NS, NS, NS, NS)
-                            )
-                            if xmlsuffixpos2:
-                                suffixTag = (
-                                    xmlsuffixpos[0].text + ":" + xmlsuffixpos2[0].text
-                                )
-                            else:
-                                suffixTag = xmlsuffixpos[0].text
-                        except:
-                            pass
-                        if suffixTag:
-                            tag += "~" + suffixTag
-                        word = (word, tag)
-                    # relational
-                    # the gold standard is stored in
-                    # <mor></mor><mor type="trn"><gra type="grt">
-                    if relation == True:
-                        for xmlstem_rel in xmlword.findall(
-                            ".//{%s}mor/{%s}gra" % (NS, NS)
-                        ):
-                            if not xmlstem_rel.get("type") == "grt":
-                                word = (
-                                    word[0],
-                                    word[1],
-                                    xmlstem_rel.get("index")
-                                    + "|"
-                                    + xmlstem_rel.get("head")
-                                    + "|"
-                                    + xmlstem_rel.get("relation"),
-                                )
-                            else:
-                                word = (
-                                    word[0],
-                                    word[1],
-                                    word[2],
-                                    word[0],
-                                    word[1],
-                                    xmlstem_rel.get("index")
-                                    + "|"
-                                    + xmlstem_rel.get("head")
-                                    + "|"
-                                    + xmlstem_rel.get("relation"),
-                                )
-                        try:
-                            for xmlpost_rel in xmlword.findall(
-                                ".//{%s}mor/{%s}mor-post/{%s}gra" % (NS, NS, NS)
-                            ):
-                                if not xmlpost_rel.get("type") == "grt":
-                                    suffixStem = (
-                                        suffixStem[0],
-                                        suffixStem[1],
-                                        xmlpost_rel.get("index")
-                                        + "|"
-                                        + xmlpost_rel.get("head")
-                                        + "|"
-                                        + xmlpost_rel.get("relation"),
+                        for xmlword in xmlwordlist:
+                            # get text
+                            word = ""
+                            if xmlword.text:
+                                word = xmlword.text
+                            if xmlword.find(".//{%s}langs" % NS) != None:
+                                word = word + xmlword.find(".//{%s}langs" % NS).tail
+                            if replace and xmlword.find(".//{%s}wk" % NS) != None:
+                                for wk in xmlword.findall(".//{%s}wk" % NS):
+                                    if wk.tail:
+                                        word = word + wk.tail
+                            if xmlword.findall(".//{%s}shortening" % NS) != None:
+                                for xword in xmlword.findall(".//{%s}shortening" % NS):
+                                    if xword.text != None:
+                                        word = word + xword.text
+                                    if xword.tail != None:
+                                        word = word + xword.tail
+                            if xmlword.find(".//{%s}p" % NS) != None:
+                                for xword in xmlword.findall(".//{%s}p" % NS):
+                                    if xword.tail:
+                                        word = word + xword.tail
+                            # strip tailing space
+                            if strip_space:
+                                word = word.strip()
+                            # stem
+                            if relation or stem:
+                                try:
+                                    xmlstem = xmlword.find(".//{%s}stem" % NS)
+                                    word = xmlstem.text
+                                except AttributeError as e:
+                                    pass
+                                # if there is an inflection
+                                try:
+                                    xmlinfl = xmlword.find(
+                                        ".//{%s}mor/{%s}mw/{%s}mk" % (NS, NS, NS)
                                     )
-                                else:
-                                    suffixStem = (
-                                        suffixStem[0],
-                                        suffixStem[1],
-                                        suffixStem[2],
-                                        suffixStem[0],
-                                        suffixStem[1],
-                                        xmlpost_rel.get("index")
-                                        + "|"
-                                        + xmlpost_rel.get("head")
-                                        + "|"
-                                        + xmlpost_rel.get("relation"),
+                                    word += "-" + xmlinfl.text
+                                except:
+                                    pass
+                                # if there is a suffix
+                                try:
+                                    xmlsuffix = xmlword.find(
+                                        ".//{%s}mor/{%s}mor-post/{%s}mw/{%s}stem"
+                                        % (NS, NS, NS, NS)
                                     )
-                        except:
-                            pass
-                    sents.append(word)
+                                    suffixStem = xmlsuffix.text
+                                except AttributeError:
+                                    suffixStem = ""
+                                if suffixStem:
+                                    word += "~" + suffixStem
+                            # pos
+                            if relation or pos:
+                                try:
+                                    xmlpos = xmlword.findall(".//{%s}c" % NS)
+                                    xmlpos2 = xmlword.findall(".//{%s}s" % NS)
+                                    if xmlpos2 != []:
+                                        tag = xmlpos[0].text + ":" + xmlpos2[0].text
+                                    else:
+                                        tag = xmlpos[0].text
+                                except (AttributeError, IndexError) as e:
+                                    tag = ""
+                                try:
+                                    xmlsuffixpos = xmlword.findall(
+                                        ".//{%s}mor/{%s}mor-post/{%s}mw/{%s}pos/{%s}c"
+                                        % (NS, NS, NS, NS, NS)
+                                    )
+                                    xmlsuffixpos2 = xmlword.findall(
+                                        ".//{%s}mor/{%s}mor-post/{%s}mw/{%s}pos/{%s}s"
+                                        % (NS, NS, NS, NS, NS)
+                                    )
+                                    if xmlsuffixpos2:
+                                        suffixTag = (
+                                            xmlsuffixpos[0].text + ":" + xmlsuffixpos2[0].text
+                                        )
+                                    else:
+                                        suffixTag = xmlsuffixpos[0].text
+                                except:
+                                    pass
+                                if suffixTag:
+                                    tag += "~" + suffixTag
+                                word = (word, tag)
+                            # relational
+                            # the gold standard is stored in
+                            # <mor></mor><mor type="trn"><gra type="grt">
+                            if relation == True:
+                                for xmlstem_rel in xmlword.findall(
+                                    ".//{%s}mor/{%s}gra" % (NS, NS)
+                                ):
+                                    if not xmlstem_rel.get("type") == "grt":
+                                        word = (
+                                            word[0],
+                                            word[1],
+                                            xmlstem_rel.get("index")
+                                            + "|"
+                                            + xmlstem_rel.get("head")
+                                            + "|"
+                                            + xmlstem_rel.get("relation"),
+                                        )
+                                    else:
+                                        word = (
+                                            word[0],
+                                            word[1],
+                                            word[2],
+                                            word[0],
+                                            word[1],
+                                            xmlstem_rel.get("index")
+                                            + "|"
+                                            + xmlstem_rel.get("head")
+                                            + "|"
+                                            + xmlstem_rel.get("relation"),
+                                        )
+                                try:
+                                    for xmlpost_rel in xmlword.findall(
+                                        ".//{%s}mor/{%s}mor-post/{%s}gra" % (NS, NS, NS)
+                                    ):
+                                        if not xmlpost_rel.get("type") == "grt":
+                                            suffixStem = (
+                                                suffixStem[0],
+                                                suffixStem[1],
+                                                xmlpost_rel.get("index")
+                                                + "|"
+                                                + xmlpost_rel.get("head")
+                                                + "|"
+                                                + xmlpost_rel.get("relation"),
+                                            )
+                                        else:
+                                            suffixStem = (
+                                                suffixStem[0],
+                                                suffixStem[1],
+                                                suffixStem[2],
+                                                suffixStem[0],
+                                                suffixStem[1],
+                                                xmlpost_rel.get("index")
+                                                + "|"
+                                                + xmlpost_rel.get("head")
+                                                + "|"
+                                                + xmlpost_rel.get("relation"),
+                                            )
+                                except:
+                                    pass
+                            sents.append(word)
                 if sent or relation:
                     results.append(sents)
                 else:

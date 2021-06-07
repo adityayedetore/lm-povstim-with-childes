@@ -9,15 +9,24 @@ train, valid, test, excluded, vocab = clean_and_unk(train_raw, valid_raw, test_r
 if not os.path.exists('pretraining'):
     os.mkdir('pretraining')
 with open ('pretraining/train.txt', 'w') as f:
-    f.write("\n".join([' '.join(s) for s in train]))
+    f.write("\n".join([' '.join(s) for filepath,s in train]))
 with open ('pretraining/valid.txt', 'w') as f:
-    f.write("\n".join([' '.join(s) for s in valid]))
+    f.write("\n".join([' '.join(s) for filepath,s in valid]))
 with open ('pretraining/test.txt', 'w') as f:
-    f.write("\n".join([' '.join(s) for s in test]))
+    f.write("\n".join([' '.join(s) for filepath,s in test]))
 with open ('pretraining/excluded.txt', 'w') as f:
-    f.write("\n".join([' '.join(s) for s in excluded]))
+    f.write("\n".join([' '.join(s) for filepath,s in excluded]))
 with open ('pretraining/vocab.txt', 'w') as f:
     f.write("\n".join(vocab))
+
+with open ('pretraining/train.map', 'w') as f:
+    f.write("\n".join([filepath + '\t' + ' '.join(s) for filepath,s in train]))
+with open ('pretraining/valid.map', 'w') as f:
+    f.write("\n".join([filepath + '\t' + ' '.join(s) for filepath,s in valid]))
+with open ('pretraining/test.map', 'w') as f:
+    f.write("\n".join([filepath + '\t' + ' '.join(s) for filepath,s in test]))
+with open ('pretraining/excluded.map', 'w') as f:
+    f.write("\n".join([filepath + '\t' + ' '.join(s) for filepath,s in excluded]))
 
 decl, quest = process_childes_treebank("childes-treebank")
 with open ('pretraining/excluded.txt') as f:

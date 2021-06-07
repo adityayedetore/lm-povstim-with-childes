@@ -14,7 +14,44 @@ from collections import defaultdict
 import random
 from random import sample
 import copy
+import shutil  
+import os
+from os import path
+import fnmatch
 
+def copy_directory(source, destination):
+
+    # Copy the content of
+    # source to destination
+    destination = shutil.copytree(source, destination)
+
+
+def find_replace(directory, find, replace, filePattern):
+    for path, dirs, files in os.walk(os.path.abspath(directory)):
+        for filename in fnmatch.filter(files, filePattern):
+            filepath = os.path.join(path, filename)
+            with open(filepath) as f:
+                s = f.read()
+            s = s.replace(find, replace)
+            with open(filepath, "w") as f:
+                f.write(s)
+
+def preprocess(path_to_corpora, corpora_file_name):
+    source = path_to_corpora + corpora_file_name
+    destination = source +  "-preprocessed"
+    if path.exists(destination):
+        print("Preprocessed directory " + destination + 
+                " already exists. Remove directory and run this script again to re-preprocess")
+        return
+    copy_directory(source, destination)
+    find_replace(destination, "<g>", "", "*.xml")
+    find_replace(destination, "</g>", "", "*.xml")
+    find_replace(destination, '<p type="drawl"/>', "", "*.xml")
+    find_replace(destination, "<shortening>", "", "*.xml")
+    find_replace(destination, "</shortening>", "", "*.xml")
+
+# print(destination) prints the
+# path of newly created file
 
 # Create a CHILDESCorpusReader object
 def read_corpora(path_to_corpora, corpora_file_name):
@@ -38,13 +75,21 @@ def map_files_to_non_target_child_utterances(corpora):
 # Returns list of participant IDs for participants who
 # are not the target child
 def get_non_target_child_participants(corpora, fileid):
+    target_child_coded_as_Target_Child = False
+    participants_coded_as_Child = []
     non_target_child_participants = []
     corpora_participants = corpora.participants(fileid)
     for participants in corpora_participants:
         for key in participants.keys():
             dct = participants[key]
-            if dct['role'] != "Target_Child":
+            if dct['role'] not in ["Target_Child","Child"]:
                 non_target_child_participants.append(dct['id'])
+            if dct['role'] == "Target_Child":
+                target_child_coded_as_Target_Child = True
+            if dct['role'] == "Child":
+                participants_coded_as_Child.append(dct['id'])
+    if target_child_coded_as_Target_Child:
+        non_target_child_participants += participants_coded_as_Child
     return non_target_child_participants
 
 # Returns utterances from `fileid` in `corpus` spoken by any
@@ -57,7 +102,7 @@ def get_utterances_filtered_by_participants(corpus, fileid, participants):
 
 # Checks if fileid is in the treebank
 def is_treebank_file(fileid):
-    for treebank_corpus_name in ['Brown','Soderstrom','Valian','Suppes']:
+    for treebank_corpus_name in ['Brown','Soderstrom','Valian','Suppes','HSLLD/HV1']:
         if treebank_corpus_name in fileid:
             return True
     return False
@@ -101,40 +146,67 @@ def hold_out(files_to_utterances):
 # Training: 90%, valid: 5%, test: 5%
 def train_valid_test_split(files_to_utterances):
     files_to_utterances_sorted = sort_dict_by_value_length(files_to_utterances)
-    utterances = [utts for utts in files_to_utterances_sorted.values()]
+    utterances = [(filename, utts) for filename, utts in files_to_utterances_sorted.items()]
     train, valid, test = [],[],[]
     count = 0
-    while count < len(utterances) - 100:
-        sample_indices = sample(range(count, count + 100), 100)
-        for i in sample_indices[0:90]:
-            train += utterances[i]
-        for i in sample_indices[90:95]:
-            valid += utterances[i]
-        for i in sample_indices[95:100]:
-            test += utterances[i]
+    while count < len(utterances):
+        batch_size = min(100, len(utterances) - count)
+        sample_indices = sample(range(count, count + batch_size), batch_size)
+        for i in sample_indices[10:]:
+            filename, utts = utterances[i]
+            train += [(filename, utt) for utt in utts]
+        for i in sample_indices[:5]:
+            filename, utts = utterances[i]
+            valid += [(filename, utt) for utt in utts]
+        for i in sample_indices[5:10]:
+            filename, utts = utterances[i]
+            test += [(filename, utt) for utt in utts]
         count += 100
     return train, valid, test
 
-# Sort a dictionary by the lengths of its values
+# Sort a dictionary in descending order by the lengths of its values
 def sort_dict_by_value_length(x):
-    return {k: v for k, v in sorted(x.items(), key=lambda item: len(item[1]))}
+    return {k: v for k, v in sorted(x.items(), key=lambda item: len(item[1]), reverse=True)}
 
 
 # Reshuffle the validation and test data to add the treebank test data
 # (aka `excluded`) to the test set, and then move some elements from `test`
 # into `valid` so that valid and test are still the same size
+# we also make sure not to split files up between test and validation
 def remix_held_out(valid, test, excluded):
-    excluded_utterances = [utt for utts in excluded.values() for utt in utts]
+    excluded_utterances = [(filename,utt) for filename,utts in excluded.items() for utt in utts]
     excluded_size = len(excluded_utterances)
     reshuffle_size = int(excluded_size/2)
-    return valid + test[:reshuffle_size], test[reshuffle_size:] + excluded_utterances
+    if excluded_size > 0:
+        cutoff_file = test[-reshuffle_size][0]
+        while cutoff_file == test[-reshuffle_size][0]: 
+            reshuffle_size -= 1
+    return valid + test[-reshuffle_size:], test[:-reshuffle_size] + excluded_utterances
 
-
+def shuffle(data):
+    file_to_utterances = {}
+    for f,u in data:
+        if f in file_to_utterances:
+            file_to_utterances[f].append(u)
+        else:
+            file_to_utterances[f] = [u]
+    files_to_utterances_list = [(f,file_to_utterances[f]) for f in file_to_utterances]
+    #random.shuffle(files_to_utterances_list)
+    return [(f,utt) for f,utts in files_to_utterances_list for utt in utts]
+    
 
 def process_childes_xml(path_to_childes="./", childes_file_name="childes-xml"):
-    # Create corpus reader
-    corpora = read_corpora(path_to_corpora=path_to_childes, corpora_file_name=childes_file_name)
+    print("REMEMBER THAT YOU TURNED OFF SHUFFLING!! turn it back on when you are done with checking out the results")
+    random.seed(1)
 
+    # Preprocessing (removes <g> tags)
+    print("Starting preprocessing")
+    preprocess(path_to_childes, childes_file_name)
+    print("Preprocessing finished")
+
+    # Create corpus reader
+    corpora = read_corpora(path_to_corpora=path_to_childes, corpora_file_name=childes_file_name + "-preprocessed")
+    
     # Get utterances from all participants other than target child
     files_to_utterances = map_files_to_non_target_child_utterances(corpora)
 
@@ -159,7 +231,7 @@ def process_childes_xml(path_to_childes="./", childes_file_name="childes-xml"):
     valid_remixed, test_remixed = remix_held_out(valid, test, excluded)
 
     # The full list of excluded treebank uterances
-    excluded = [utt for utts in excluded.values() for utt in utts]
+    excluded = [(filename,utt) for filename,utts in excluded.items() for utt in utts]
 
-    return train, valid_remixed, test_remixed, excluded
+    return shuffle(train), shuffle(valid_remixed), shuffle(test_remixed), shuffle(excluded)
 
