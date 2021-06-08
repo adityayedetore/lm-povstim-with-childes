@@ -60,11 +60,17 @@ criterion = nn.CrossEntropyLoss()
 
 logging.info("Building the model")
 
-
-if args.model == "Transformer":
-    model = model.TransformerModel(ntokens, args.emsize, args.nhead, args.nhid, args.nlayers, args.dropout)
+if args.load == None:
+    if args.model == "Transformer":
+        model = model.TransformerModel(ntokens, args.emsize, args.nhead, args.nhid, args.nlayers, args.dropout)
+    else:
+        model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied)
 else:
-    model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied)
+    with open(args.load, 'rb') as f:
+        if args.cuda:
+            model = torch.load(f)
+        else:
+            model = torch.load(f, map_location = lambda storage, loc: storage)
 
 if args.cuda:
     model.cuda()
