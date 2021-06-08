@@ -16,6 +16,8 @@ lm_parser.add_argument('--data', type=str,
                        help='location of the data corpus')
 lm_parser.add_argument('--load', type=str, default=None,
                        help='load model')
+lm_parser.add_argument('--finetune', action='store_true',
+                       help='finetune on declquest data')
 
 lm_parser.add_argument('--model', type=str, default='LSTM',
                        help='type of model (RNN_TANH, RNN_RELU, LSTM, GRU, Transformer)')

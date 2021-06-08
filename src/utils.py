@@ -7,6 +7,7 @@
 
 
 import torch
+from itertools import groupby
 
 # Detaches hidden states from their history,
 # to avoid backpropagating when you don't want to
@@ -35,3 +36,14 @@ def batchify(data, bsz, cuda):
     if cuda:
         data = data.cuda()
     return data
+
+def batchify_finetuning(data, split_id, cuda):
+    def is_split_id(x):
+        return x == split_id
+    data = [torch.tensor(list(group) + [split_id]) for k, group in groupby(data.tolist(), is_split_id) if not k]
+    # Evenly divide the data across the bsz batches.
+    if cuda:
+        data = data.cuda()
+    return data
+
+

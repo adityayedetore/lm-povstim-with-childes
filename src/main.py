@@ -16,7 +16,7 @@ import torch.nn as nn
 from dictionary_corpus import Corpus
 import model
 from lm_argparser import lm_parser
-from utils import repackage_hidden, get_batch, batchify
+from utils import repackage_hidden, get_batch, batchify, batchify_finetuning
 
 parser = argparse.ArgumentParser(parents=[lm_parser],
                                  description="Basic training and evaluation for RNN LM")
@@ -47,10 +47,18 @@ ntokens = len(corpus.dictionary)
 logging.info("Vocab size %d", ntokens)
 
 logging.info("Batchifying..")
-eval_batch_size = 10
-train_data = batchify(corpus.train, args.batch_size, args.cuda)
-val_data = batchify(corpus.valid, eval_batch_size, args.cuda)
-test_data = batchify(corpus.test, eval_batch_size, args.cuda)
+if args.finetune:
+    args.batch_size = 1
+    eval_batch_size = 1
+    train_data = batchify_finetuning(corpus.train, corpus.dictionary.word2idx['?'], args.cuda)
+    val_data = batchify_finetuning(corpus.valid, corpus.dictionary.word2idx['?'], args.cuda)
+    test_data = batchify_finetuning(corpus.test, corpus.dictionary.word2idx['?'], args.cuda)
+else:
+    eval_batch_size = 10
+    train_data = batchify(corpus.train, args.batch_size, args.cuda)
+    val_data = batchify(corpus.valid, eval_batch_size, args.cuda)
+    test_data = batchify(corpus.test, eval_batch_size, args.cuda)
+
 
 criterion = nn.CrossEntropyLoss()
 
@@ -116,6 +124,74 @@ def evaluate(data_source):
 
     return total_loss / (len(data_source) - 1)
 
+def evaluate_finetuned(data_source):
+    # Turn on evaluation mode which disables dropout.
+    model.eval()
+    total_loss = 0
+    if args.model != "Transformer":
+        hidden = model.init_hidden(eval_batch_size)
+
+    with torch.no_grad():
+        for i, batch in enumerate(data_source):
+            data, targets = batch[:-1].unsqueeze(1), batch[1:]
+            if args.model == "Transformer":
+                output = model(data)
+                output = output.view(-1, ntokens)
+            else:
+                #> output has size seq_length x batch_size x vocab_size
+                output, hidden = model(data, hidden)
+                #> output_flat has size num_targets x vocab_size (batches are stacked together)
+                #> ! important, otherwise softmax computation (e.g. with F.softmax()) is incorrect
+                output = output.view(-1, ntokens)
+                #output_candidates_info(output_flat.data, targets.data)
+                hidden = repackage_hidden(hidden)
+
+            total_loss += nn.CrossEntropyLoss()(output, targets).item()
+
+    return total_loss / (len(data_source) - 1)
+
+def finetune():
+    # Turn on training mode which enables dropout.
+    model.train()
+    total_loss = 0
+    start_time = time.time()
+
+    if args.model != "Transformer":
+        hidden = model.init_hidden(args.batch_size)
+
+    # Loop over training set in chunks of decl quest pairs
+    for i, batch in enumerate(train_data):
+        data, targets = batch[:-1].unsqueeze(1), batch[1:]
+       
+        model.zero_grad()
+        
+        if args.model == "Transformer":
+            output = model(data)
+            output = output.view(-1, ntokens)
+        else:
+            # truncated BPP
+            hidden = repackage_hidden(hidden)
+            output, hidden = model(data, hidden)
+
+        loss = criterion(output.view(-1, ntokens), targets)
+        loss.backward()
+
+        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
+        torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+        for p in model.parameters():
+            p.data.add_(-lr, p.grad.data)
+
+        total_loss += loss.item()
+
+        if i % args.log_interval == 0 and i > 0:
+            cur_loss = total_loss / args.log_interval
+            elapsed = time.time() - start_time
+            logging.info('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
+                    'loss {:5.2f} | ppl {:8.2f}'.format(
+                epoch, i, len(train_data), lr,
+                elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
+            total_loss = 0
+            start_time = time.time()
 
 def train():
     # Turn on training mode which enables dropout.
@@ -174,9 +250,13 @@ try:
     while not patience_exhausted:
         epoch_start_time = time.time()
 
-        train()
+        if args.finetune:
+            finetune()
+            val_loss = evaluate_finetuned(val_data)
+        else:
+            train()
+            val_loss = evaluate(val_data)
 
-        val_loss = evaluate(val_data)
         logging.info('-' * 89)
         logging.info('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
                 'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
@@ -213,7 +293,10 @@ with open(args.save, 'rb') as f:
     model = torch.load(f)
 
 # Run on test data.
-test_loss = evaluate(test_data)
+if args.finetune:
+    test_loss = evaluate_finetuned(test_data)
+else:
+    test_loss = evaluate(test_data)
 logging.info('=' * 89)
 logging.info('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(test_loss, math.exp(test_loss)))
 logging.info('=' * 89)
