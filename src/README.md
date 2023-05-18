@@ -6,7 +6,7 @@ Our pretrained models can be downloaded from [here](http://www.adityayedetore.co
 
 ## Training 
 
-Before training the models, download the `pretraining.zip` from [here](http://www.adityayedetore.com/childes-project/), unzip it, and put it in `/data/CHILDES`.
+Before training the models, download the `pretraining.zip` from [here](http://www.adityayedetore.com/childes-project/), unzip it, and put it in `/data/CHILDES`. Also, create the folder `models` with `mkidr models`.
 
 To train a transformer model, use 
 
@@ -18,7 +18,7 @@ To train a lstm model, use
 
 ## Finetuning
 
-Before training the models, train the models with the above commands, then download the `finetuning.zip` from [here](http://www.adityayedetore.com/childes-project/), unzip it, and put it in `/data/CHILDES`.
+Before training the models, train the models with the above commands, then download `finetuning.zip` from [here](http://www.adityayedetore.com/childes-project/), unzip it, and put it in `/data/CHILDES`.
 
 To finetune a transformer model, use 
 
@@ -30,7 +30,7 @@ To finetune a lstm model, use
 
 ### Evaluating
 
-To evaluate the models, first train and finetune models using the above commands, then call the following: 
+To evaluate the models, first train and finetune models using the above commands, create `results/` with `mkdir results`, then call the following: 
 
 `python eval.py --data ../data/CFG/linear.txt.data --finetuning_data ../data/CHILDES/finetuning/ --model models/lstm-finetuned.pt --rnn --results results/lstm-linear-results.txt`
 
