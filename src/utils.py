@@ -8,6 +8,7 @@
 
 import torch
 from itertools import groupby
+from torch.nn.utils.rnn import pad_sequence
 
 # Detaches hidden states from their history,
 # to avoid backpropagating when you don't want to
@@ -37,13 +38,13 @@ def batchify(data, bsz, cuda):
         data = data.cuda()
     return data
 
-def batchify_finetuning(data, split_id, cuda):
+def batchify_finetuning(data, batch_size, split_id, cuda, padding_id=0):
     def is_split_id(x):
         return x == split_id
     data = [torch.tensor(list(group) + [split_id]) for k, group in groupby(data.tolist(), is_split_id) if not k]
-    # Evenly divide the data across the bsz batches.
+    chunks = [data[x:x+batch_size] for x in range(0, len(data), batch_size)]
+    data = [pad_sequence(c, batch_first=True, padding_value=padding_id) for c in chunks]
     if cuda:
-        data = data.cuda()
+        data = [d.cuda() for d in data]
     return data
-
 

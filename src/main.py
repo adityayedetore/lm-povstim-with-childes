@@ -45,22 +45,21 @@ corpus = Corpus(args.data)
 logging.info("( %.2f )" % (time.time() - start))
 ntokens = len(corpus.dictionary)
 logging.info("Vocab size %d", ntokens)
+eval_batch_size = 10
 
 logging.info("Batchifying..")
 if args.finetune:
-    args.batch_size = 1
-    eval_batch_size = 1
-    train_data = batchify_finetuning(corpus.train, corpus.dictionary.word2idx['?'], args.cuda)
-    val_data = batchify_finetuning(corpus.valid, corpus.dictionary.word2idx['?'], args.cuda)
-    test_data = batchify_finetuning(corpus.test, corpus.dictionary.word2idx['?'], args.cuda)
+    train_data = batchify_finetuning(corpus.train, args.batch_size, corpus.dictionary.word2idx['?'], args.cuda, padding_id =0)
+    val_data = batchify_finetuning(corpus.valid, eval_batch_size, corpus.dictionary.word2idx['?'], args.cuda, padding_id =0)
+    test_data = batchify_finetuning(corpus.test, eval_batch_size, corpus.dictionary.word2idx['?'], args.cuda, padding_id =0)
+    criterion = nn.CrossEntropyLoss(ignore_index=0) 
 else:
-    eval_batch_size = 10
     train_data = batchify(corpus.train, args.batch_size, args.cuda)
     val_data = batchify(corpus.valid, eval_batch_size, args.cuda)
     test_data = batchify(corpus.test, eval_batch_size, args.cuda)
+    criterion = nn.CrossEntropyLoss() 
 
 
-criterion = nn.CrossEntropyLoss()
 
 ###############################################################################
 # Build the model
@@ -98,55 +97,40 @@ def evaluate(data_source):
         hidden = model.init_hidden(eval_batch_size)
 
     with torch.no_grad():
-        # Loop over test set in chunks of size args.bptt
-        # For eval, the value of args.bptt doesn't matter - it
-        # only matters for training because it determines how far back
-        # the gradient is backpropagated. 
-        # But, for Transformers, this will matter, because it determines
-        # how much prior context the model has. (In a Transformer, it only
-        # has access to the current slice of the dataset, since it doesn't
-        # have a persistent hidden state like an RNN does).
         for i in range(0, data_source.size(0) - 1, args.bptt):
             data, targets = get_batch(data_source, i, args.bptt)
             if args.model == "Transformer":
                 output = model(data)
                 output = output.view(-1, ntokens)
             else:
-                #> output has size seq_length x batch_size x vocab_size
                 output, hidden = model(data, hidden)
-                #> output_flat has size num_targets x vocab_size (batches are stacked together)
-                #> ! important, otherwise softmax computation (e.g. with F.softmax()) is incorrect
                 output = output.view(-1, ntokens)
-                #output_candidates_info(output_flat.data, targets.data)
                 hidden = repackage_hidden(hidden)
 
             total_loss += len(data) * nn.CrossEntropyLoss()(output, targets).item()
 
     return total_loss / (len(data_source) - 1)
 
+
 def evaluate_finetuned(data_source):
     # Turn on evaluation mode which disables dropout.
     model.eval()
     total_loss = 0
-    if args.model != "Transformer":
-        hidden = model.init_hidden(eval_batch_size)
 
     with torch.no_grad():
-        for i, batch in enumerate(data_source):
-            data, targets = batch[:-1].unsqueeze(1), batch[1:]
+        for batch, b in enumerate(data_source):
+            data, targets = b[:,:-1].T, b[:,1:].T.flatten()
+
             if args.model == "Transformer":
                 output = model(data)
                 output = output.view(-1, ntokens)
             else:
-                #> output has size seq_length x batch_size x vocab_size
-                output, hidden = model(data, hidden)
-                #> output_flat has size num_targets x vocab_size (batches are stacked together)
-                #> ! important, otherwise softmax computation (e.g. with F.softmax()) is incorrect
-                output = output.view(-1, ntokens)
-                #output_candidates_info(output_flat.data, targets.data)
+                hidden = model.init_hidden(len(b))
                 hidden = repackage_hidden(hidden)
+                output, hidden = model(data, hidden)
+                output = output.view(-1, ntokens)
 
-            total_loss += nn.CrossEntropyLoss()(output, targets).item()
+            total_loss +=  criterion(output, targets).item()
 
     return total_loss / (len(data_source) - 1)
 
@@ -156,12 +140,9 @@ def finetune():
     total_loss = 0
     start_time = time.time()
 
-    if args.model != "Transformer":
-        hidden = model.init_hidden(args.batch_size)
-
     # Loop over training set in chunks of decl quest pairs
-    for i, batch in enumerate(train_data):
-        data, targets = batch[:-1].unsqueeze(1), batch[1:]
+    for batch, b in enumerate(train_data):
+        data, targets = b[:,:-1].T, b[:,1:].T.flatten()
        
         model.zero_grad()
         
@@ -170,10 +151,12 @@ def finetune():
             output = output.view(-1, ntokens)
         else:
             # truncated BPP
-            hidden = repackage_hidden(hidden)
+            hidden = model.init_hidden(len(b))
+            hidden = repackage_hidden(hidden) # is this necessary? 
             output, hidden = model(data, hidden)
+            output = output.view(-1, ntokens)
 
-        loss = criterion(output.view(-1, ntokens), targets)
+        loss = criterion(output, targets)
         loss.backward()
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
@@ -183,12 +166,12 @@ def finetune():
 
         total_loss += loss.item()
 
-        if i % args.log_interval == 0 and i > 0:
+        if batch % args.log_interval == 0 and batch > 0:
             cur_loss = total_loss / args.log_interval
             elapsed = time.time() - start_time
             logging.info('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
                     'loss {:5.2f} | ppl {:8.2f}'.format(
-                epoch, i, len(train_data), lr,
+                epoch, batch, len(train_data), lr,
                 elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
             total_loss = 0
             start_time = time.time()
