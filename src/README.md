@@ -2,7 +2,7 @@ This directory contains the scripts we used to run our experiments.
 
 For all the commands above below, to run with cuda append `--cuda` to the `python main.py ...` or `python eval.py ...` call.
 
-Our pretrained models can be downloaded from [here](http://www.adityayedetore.com/childes-project/). 
+Our pretrained models can be downloaded from [here](http://www.adityayedetore.com/childes-project/) as `models.zip`. The download size is 5.8G, and unzipped it is 6.3G (so expect a slow download).
 
 ## Training 
 
@@ -30,7 +30,7 @@ To finetune a lstm model, use
 
 ### Evaluating
 
-To evaluate the models, first train and finetune models using the above commands, create `results/` with `mkdir results`, then call the following: 
+To evaluate the models, first train and finetune models using the above commands, download `linear.txt.data` and `hierarchical.txt.data` from [here](http://www.adityayedetore.com/childes-project/) and place them in `/data/CFG/`, then create `results/` with `mkdir results`, then call the following: 
 
 `python eval.py --data ../data/CFG/linear.txt.data --finetuning_data ../data/CHILDES/finetuning/ --model models/lstm-finetuned.pt --rnn --results results/lstm-linear-results.txt`
 
