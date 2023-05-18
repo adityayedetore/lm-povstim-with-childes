@@ -2,6 +2,8 @@ This directory contains the scripts we used to run our experiments.
 
 For all the commands above below, to run with cuda append `--cuda` to the `python main.py ...` or `python eval.py ...` call.
 
+Our pretrained models can be downloaded from [here](http://www.adityayedetore.com/childes-project/). 
+
 ## Training 
 
 Before training the models, download the `pretraining.zip` from [here](http://www.adityayedetore.com/childes-project/), unzip it, and put it in `/data/CHILDES`.
