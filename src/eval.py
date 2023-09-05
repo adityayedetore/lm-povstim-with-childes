@@ -278,5 +278,5 @@ else:
     #logging.info('| End of Evaluation | Full sent correct with move main proportion ' + str(num_full_correct/len(results)))
     #logging.info('| End of Evaluation | Full sent correct with move firt proportion ' + str(num_full_correct_move_first/len(results)))
     #logging.info('=' * 89)
-    logging.info('\nProportion that the first word follows MOVE-FIRST: ' + (str(sum(move_first)/len(move_first)) + '0'*6)[:6] + '\nProportion that the first word follows MOVE-MAIN: ' + '\nPropostion that the full sentence follows MOVE-MAIN: ' + (str(sum(move_main)/len(move_main)) + '0'*6)[:6] + '\nProportion that the full sentence follows MOVE-FIRST: ' + (str(num_full_correct/len(results)) + '0'*6)[:6] + '\t' + (str(num_full_correct_move_first/len(results)) + '0'*6)[:6])
+    logging.info('\nProportion that the first word follows MOVE-FIRST: ' + (str(sum(move_first)/len(move_first)) + '0'*6)[:6] + '\nProportion that the first word follows MOVE-MAIN: ' + (str(sum(move_main)/len(move_main)) + '0'*6)[:6]) #+ '\nPropostion that the full sentence follows MOVE-MAIN: ' + (str(sum(move_main)/len(move_main)) + '0'*6)[:6] + '\nProportion that the full sentence follows MOVE-FIRST: ' + (str(num_full_correct/len(results)) + '0'*6)[:6] + '\t' + (str(num_full_correct_move_first/len(results)) + '0'*6)[:6])
 
