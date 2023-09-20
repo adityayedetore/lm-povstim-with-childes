@@ -2,7 +2,7 @@ This directory contains the scripts we used to run our experiments.
 
 For all the commands above below, to run with cuda append `--cuda` to the `python main.py ...` or `python eval.py ...` call.
 
-Our pretrained models can be downloaded from [here](http://www.adityayedetore.com/childes-project/) as `models.zip`. The download size is 5.8G, and unzipped it is 6.3G (so expect a slow download).
+Our pretrained models can be downloaded from [here](http://www.adityayedetore.com/childes-project/) as `models.zip`. The download size is 5.8G, and unzipped it is 9G (so expect a slow download).
 
 ## Training 
 
